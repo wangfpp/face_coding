@@ -1,0 +1,25 @@
+@import "../../assets/style/minix.scss";
+#main {
+    @include cover();
+    display: flex;
+    flex-direction: row;
+    .main_left {
+        flex: 1;
+        .CodeMirror{
+            @include cover();
+        }
+    }
+    .main_right{
+        width: 200px;
+        display: flex;
+        flex-direction: column;
+        .right_top{
+            flex: 1;
+        }
+        .right_bottom{
+            height: 100px;
+            width: 100%;
+            border-top: 1px solid teal;
+        }
+    }
+}
