@@ -17,9 +17,11 @@
             flex: 1;
         }
         .right_bottom{
-            height: 100px;
+            height: 300px;
             width: 100%;
             border-top: 1px solid teal;
+            display: flex;
+            flex-direction: column;
         }
     }
 }

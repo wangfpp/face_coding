@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import Zkws from '../../utils/zk_ws.js';
+import Commication from "../../components/commication/commcation.jsx";
 import { Input, Button } from 'antd';
 import "./main.scss";
 import 'codemirror/addon/display/autorefresh';
@@ -79,6 +80,11 @@ const Main = props => {
                     </div>
                 </div>
                 <div className="right_bottom">
+                    {commicationList.length ?
+                    commicationList.map(item => {
+                        let { msg, date } = item;
+                        <Commication msg={msg} date={date}></Commication>
+                    }) : null}
                     <TextArea
                         value={commicationText}
                         showCount={true}
