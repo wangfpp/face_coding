@@ -11050,6 +11050,11 @@
     "js-base64" "^2.1.8"
     "source-map" "^0.4.2"
 
+"sdp@^3.0.2":
+  "integrity" "sha512-8EkfckS+XZQaPLyChu4ey7PghrdcraCVNpJe2Gfdi2ON1ylQ7OasuKX+b37R9slnRChwIAiQgt+oj8xXGD8x+A=="
+  "resolved" "https://registry.npmjs.org/sdp/-/sdp-3.0.3.tgz"
+  "version" "3.0.3"
+
 "select-hose@^2.0.0":
   "integrity" "sha1-Yl2GWPhlr0Psliv8N2o3NZpJlMo="
   "resolved" "https://registry.npmjs.org/select-hose/-/select-hose-2.0.0.tgz"
@@ -12680,6 +12685,13 @@
     "terser-webpack-plugin" "^1.4.3"
     "watchpack" "^1.7.4"
     "webpack-sources" "^1.4.1"
+
+"webrtc-adapter@^8.0.0":
+  "integrity" "sha512-1U73dJB7xdXC3UmCHK3VuWU/bD1MBfYGgEPCXlBB/5QVQOzbi80UxBGvAvRt4Oocuwo5bzAD272kpkBd6f0HwA=="
+  "resolved" "https://registry.npmjs.org/webrtc-adapter/-/webrtc-adapter-8.0.0.tgz"
+  "version" "8.0.0"
+  dependencies:
+    "sdp" "^3.0.2"
 
 "websocket-driver@^0.7.4", "websocket-driver@>=0.5.1":
   "integrity" "sha512-b17KeDIQVjvb0ssuSDF2cYXSg2iztliJ4B9WdsuB6J952qCPKmnVq4DyW5motImXHDC1cBT/1UezrJVsKw5zjg=="

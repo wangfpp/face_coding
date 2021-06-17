@@ -37,9 +37,14 @@ const Home = props => {
             }
         }
     }, [lottieElement])
-
+    function goMain() {
+        props.history.push({
+            pathname: "/main",
+            state: { init: true }
+        })
+    }
     return(
-        <div id="home">
+        <div id="home" onClick={goMain}>
             <div id="lottie_item" ref={lottieElement}></div>
         </div>
     )

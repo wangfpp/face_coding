@@ -3,6 +3,5 @@
     @include cover(100%, 100%);
     #lottie_item {
         @include cover(auto, 100%);
-        float: left;
     }
 }
