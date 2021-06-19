@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { INIT, ATTACH, CREATE, JOIN, PUBLISH, SUBICRIBE, UNPUBLISH, LEAVE, UNATTACH, DESTROY } from "../../utils/janus_status.js";
 import CodeMirror from '@uiw/react-codemirror';
 import RtcView from "../../components/rtc_view/rtc_view.jsx";
-import Zkws from '../../utils/zk_ws.js';
 import Janus from "../../utils/janus.js";
 import Commication from "../../components/commication/commcation.jsx";
 import { Input, Button, Modal, Form } from 'antd';
@@ -33,8 +32,8 @@ const randomRoomId = len => {
 }
 let roomId = randomRoomId(10);
 let rtcStatus = null; // 记录RTC的状态 attch createRoom joinRoom publish unpublish leave destory ...
-
-
+let localDisplay = null;
+let localId = null;
 console.log("init room", roomId);
 const Main = props => {
     const location = useLocation();
@@ -66,7 +65,11 @@ const Main = props => {
     let ws = null;
     let janus = null;
     
-
+    /**
+     * @desciption 解析网页URL的所有参数
+     * @param {String} url 网页链接
+     * @returns 
+     */
     const queryAllParams = url => {
         let obj = {};
         if (url.length) {
@@ -118,13 +121,14 @@ const Main = props => {
             }
             roomId = room;
         }
-    }, [location])
+    }, [])
     /**
      * @description 表单验证通过后的事件 隐藏modal
      * @param {*} values 
      */
     const onFinish = values => {
         let { display } = values;
+        localDisplay = display;
         setDisplay(display);
         setShowModal(false);
     }
@@ -164,12 +168,12 @@ const Main = props => {
     }, [display, originalJanusPluginHandle])
 
     // 本地流显示
-    useEffect(() => {
-        if (localStreamElement && localStream) {
-            let videoNode = localStreamElement.current;
-            videoNode.srcObject = localStream;
-        }
-    }, [localStreamElement, localStream])
+    // useEffect(() => {
+    //     if (localStreamElement && localStream) {
+    //         let videoNode = localStreamElement.current;
+    //         videoNode.srcObject = localStream;
+    //     }
+    // }, [localStreamElement, localStream])
 
     // 判断是否应该创建房间
     useEffect(() => {
@@ -196,6 +200,9 @@ const Main = props => {
         }
     }, [originalJanusPluginHandle, location])
 
+    /**
+     * Janus 初始化的函数
+     */
     useEffect(() => {
         let url = location.search ? location.search.split("?")[1]: "";
         let urlParams = queryAllParams(url)
@@ -236,7 +243,8 @@ const Main = props => {
                             leaving,
                             participants,
                             transaction,
-                            list
+                            list,
+                            id
                         } = msg;
                         if (unpublished) {
                             
@@ -269,6 +277,7 @@ const Main = props => {
                                 break;
                             case "joined":
                                 rtcStatus = JOIN;
+                                localId = msg.id;
                                 publishOwnFeed(JanusPluginHandle, true, uuidv4())
                                 break;
                             case "participants":
@@ -310,8 +319,12 @@ const Main = props => {
                       console.log(`111111111ondata${data}`);
                     },
                     onlocalstream: (stream) => {
-                        console.log("local stream", stream);
-                        setLocalStream(stream);
+                        setLocalStream({
+                            id: localId,
+                            display: localDisplay,
+                            local: true,
+                            stream
+                        });
                     },
                     oncleanup: () => {
                     },
@@ -337,7 +350,7 @@ const Main = props => {
             }
             
           })
-    }, [JanusPluginHandle]);
+    }, []);
     /**
      * 
      * @param {String} url page url
@@ -348,6 +361,7 @@ const Main = props => {
     const insertParams = (url, index, param) => {
         return url.slice(0, index) + param + url.slice(index);
     }
+
     /**
      * @description 把地址栏URL拷贝到剪切板
      */
@@ -363,6 +377,17 @@ const Main = props => {
         } catch (err) {
             console.error('Failed to copy: ', err);
         }
+    }
+    const setCodeValue = data => {
+        let { text } = data;
+        console.log(text)
+        setcodeStr(text);
+    }
+
+    const setCommicationValue = data => {
+        let oldlist = [...commicationList];
+        oldlist.push(data)
+        setcommicationList(oldlist);
     }
     /**
     * 
@@ -449,7 +474,27 @@ const Main = props => {
          },
          webrtcState: function (on) {},
          ondata: data => {
-            setcodeStr(data);
+            try {
+                let jsonData = JSON.parse(data);
+                let { type, data: revicerData } = jsonData;
+                switch(type) {
+                    case "code":
+                        let { text } = revicerData;
+                        setcodeStr(text);
+                        break;
+                    case "msg":
+                        setcommicationList(list => {
+                            console.log("set set set ", list);
+                            return list.concat([revicerData])
+                        });
+                        break;
+                    default:
+                        break;
+                }
+            } catch (error) {
+                console.log(error);
+            }
+            // setcodeStr(data);
          },
          onremotestream: (stream) => {
             let copyList = [...remoteStreamList]
@@ -476,6 +521,35 @@ const Main = props => {
        });
      }
    };
+   const listStream = localStream ? [...remoteStreamList, ...[localStream]] : [...remoteStreamList];
+   /**
+    * @description 发送聊天信息
+    * @param {Any} _ 
+    */
+   const sendMsg = _ => {
+    if (originalJanusPluginHandle) {
+        let msg = {
+            type: "msg",
+            data: {
+                display: localDisplay,
+                text: commicationText,
+                date: new Date().toLocaleString()
+            }
+        };
+        setcommicationList(list => {
+            return list.concat([{
+                display: "我",
+                local: true,
+                text: commicationText,
+                date: new Date().toLocaleString()
+            }])
+        });
+        originalJanusPluginHandle.data({text: JSON.stringify(msg), success: res=> {
+        }, err: err => {
+            console.log(err);
+        }});
+    }
+   }
     return(
         <div id="main">
             <div className="main_left">
@@ -492,7 +566,15 @@ const Main = props => {
                             let { origin } = data;
                             setcodeStr(value);
                             if (JanusPluginHandle && origin !== "setValue") {
-                                JanusPluginHandle.data({text: value, success: res=> {
+                                let msg = {
+                                    type: "code",
+                                    data: {
+                                        display: localDisplay,
+                                        text: value,
+                                        date: new Date().toLocaleString()
+                                    }
+                                };
+                                JanusPluginHandle.data({text: JSON.stringify(msg), success: res=> {
                                 }, err: err => {
                                     console.log(err);
                                 }});
@@ -504,26 +586,30 @@ const Main = props => {
             <div className="main_right">
                 <div className="right_top">
                     <div className="camera">
-                        <video autoPlay controls muted ref={localStreamElement}></video>
-                        {remoteStreamList.length ? 
-                        remoteStreamList.map(item => {
+                        {/* <video autoPlay controls muted ref={localStreamElement}></video> */}
+                        {listStream.length ? 
+                        listStream.map(item => {
                            return <RtcView info={item} key={item.id}></RtcView>
                         }): null}
                     </div>
                 </div>
                 <div className="right_bottom">
+                    <div className="history_list">
                     {commicationList.length ?
-                    commicationList.map(item => {
-                        let { msg, date } = item;
-                        <Commication msg={msg} date={date}></Commication>
-                    }) : null}
-                    <TextArea
-                        value={commicationText}
-                        showCount={true}
-                        autoSize={false}
-                        bordered={false}
-                        onChange={ e=> {setcommicationText(e.target.value)}}
-                    ></TextArea>
+                        commicationList.map((item, index) => {
+                            return <Commication key={index} info={item}></Commication>
+                        }) : null}
+                    </div>
+                    <div className="editer_a">
+                        <Button type="primary" shape="round" disabled={!commicationText} onClick={sendMsg}>发送</Button>
+                        <TextArea
+                            value={commicationText}
+                            showCount={true}
+                            autoSize={false}
+                            bordered={false}
+                            onChange={ e=> {setcommicationText(e.target.value)}}
+                        ></TextArea>
+                    </div>
                 </div>
             </div>
             <Modal 

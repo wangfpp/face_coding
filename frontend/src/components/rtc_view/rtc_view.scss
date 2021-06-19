@@ -1,5 +1,10 @@
 .base_video{
     position: relative;
+    video{
+        width: 100%;
+        height: auto;
+        max-height: 100%;
+    }
     .video_info {
         position: absolute;
         height: 20px;

@@ -2,4 +2,14 @@
     width: 100%;
     display: flex;
     justify-content: start;
+    flex-direction: column;
+    margin: 5px 0;
+    overflow-y: auto;
+    .date{
+        font-size: 12px;
+        opacity: 0.4;
+    }
+}
+.commication_item.me {
+    align-items: flex-end;
 }
