@@ -2462,71 +2462,43 @@ function Janus(gatewayCallbacks) {
                         // 	minFrameRate: 3,
                         // 	maxFrameRate: 30
                         // }
-                        let { audio_device_id, video_device_id, role } = media;
-                        // console.log('callbacks', audio_device_id, video_device_id);
-                        getCameraResolution(video_device_id, audio_device_id).then(res => {
-                            // console.log(`video:${video_device_id}..... audio:${audio_device_id}`);
-                            let { width, height } = res;
-                            // 主讲发布的视频分辨率大于听讲
-                            if (role === 0) {
-                                if (width > 640) {
-                                    width = 640
-                                }
-                                if (height > 480) {
-                                    height = 480
-                                }
-                            } else {
-                                if (width > 360) {
-                                    width = 360
-                                }
-                                if (height > 240) {
-                                    height = 240
-                                }
-                            }
-                            var gumConstraints = {
-                                audio: (audioExist && !media.keepAudio) ? audio_device_id ? {
-                                    echoCancellation: true,
-                                    autoGainControl: false,
-                                    noiseSuppression: true,
-                                    volume: 1,
-                                    deviceId: { exact: audio_device_id }
-                                } : {
-                                    echoCancellation: true,
-                                    autoGainControl: false,
-                                    noiseSuppression: true,
-                                    volume: 1
-                                } : false,
-                                video: (videoExist && !media.keepVideo) ? video_device_id ? {
-                                    deviceId: { exact: video_device_id },
-                                    width: { ideal: width, max: width, min: width },
-                                    // height: { ideal: height, max: height, min: height },
-                                    frameRate: { max: 30, ideal: 20, min: 15 }
-                                } : {
-                                    width: { ideal: width, max: width, min: width },
-                                    // height: { ideal: height, max: height, min: height },
-                                    frameRate: { max: 30, ideal: 20, min: 15 }
-                                } : false
-                            };
-                            Janus.debug("getUserMedia constraints", gumConstraints);
-                            if (!gumConstraints.audio && !gumConstraints.video) {
-                                pluginHandle.consentDialog(false);
-                                streamsDone(handleId, jsep, media, callbacks, stream);
-                            } else {
-                                navigator.mediaDevices.getUserMedia(gumConstraints)
-                                    .then(function(stream) {
-                                        pluginHandle.consentDialog(false);
-                                        streamsDone(handleId, jsep, media, callbacks, stream);
-                                    }).catch(function(error) {
-                                        pluginHandle.consentDialog(false);
-                                        callbacks.error({ code: error.code, name: error.name, message: error.message });
-                                    });
-                            }
-                        }).catch(err => {
-                            // alert(err);
+                        let { audio_device_id, video_device_id } = media;
+                        var gumConstraints = {
+                            audio: (audioExist && !media.keepAudio) ? audio_device_id ? {
+                                echoCancellation: true,
+                                autoGainControl: false,
+                                noiseSuppression: true,
+                                volume: 1,
+                                deviceId: { exact: audio_device_id }
+                            } : {
+                                echoCancellation: true,
+                                autoGainControl: false,
+                                noiseSuppression: true,
+                                volume: 1
+                            } : false,
+                            video: (videoExist && !media.keepVideo) ? video_device_id ? {
+                                deviceId: { exact: video_device_id },
+                                // height: { ideal: height, max: height, min: height },
+                                frameRate: { max: 30, ideal: 20, min: 15 }
+                            } : {
+                                // height: { ideal: height, max: height, min: height },
+                                frameRate: { max: 30, ideal: 20, min: 15 }
+                            } : false
+                        };
+                        Janus.debug("getUserMedia constraints", gumConstraints);
+                        if (!gumConstraints.audio && !gumConstraints.video) {
                             pluginHandle.consentDialog(false);
-                            callbacks.error('获取宽高失败', err);
-                        })
-
+                            streamsDone(handleId, jsep, media, callbacks, stream);
+                        } else {
+                            navigator.mediaDevices.getUserMedia(gumConstraints)
+                                .then(function(stream) {
+                                    pluginHandle.consentDialog(false);
+                                    streamsDone(handleId, jsep, media, callbacks, stream);
+                                }).catch(function(error) {
+                                    pluginHandle.consentDialog(false);
+                                    callbacks.error({ code: error.code, name: error.name, message: error.message });
+                                });
+                        }
                     })
                     .catch(function(error) {
                         pluginHandle.consentDialog(false);

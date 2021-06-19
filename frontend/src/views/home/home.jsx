@@ -40,7 +40,7 @@ const Home = props => {
     function goMain() {
         props.history.push({
             pathname: "/main",
-            state: { init: true }
+            search: "?init=true"
         })
     }
     return(
