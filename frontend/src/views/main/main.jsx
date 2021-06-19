@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { INIT, ATTACH, CREATE, JOIN, PUBLISH, SUBICRIBE, UNPUBLISH, LEAVE, UNATTACH, DESTROY } from "../../utils/janus_status.js";
 import CodeMirror from '@uiw/react-codemirror';
 import RtcView from "../../components/rtc_view/rtc_view.jsx";
 import Zkws from '../../utils/zk_ws.js';
 import Janus from "../../utils/janus.js";
 import Commication from "../../components/commication/commcation.jsx";
-import { Input, Button } from 'antd';
+import { Input, Button, Modal, Form } from 'antd';
 import { ShareAltOutlined } from "@ant-design/icons";
 import { v4 as uuidv4 } from "uuid";
 import { useLocation } from "react-router-dom";
@@ -18,6 +19,8 @@ import 'codemirror/keymap/sublime';
 import 'codemirror/theme/monokai.css';
 import { baseIp } from '../../utils/config.js';
 
+
+
 const { TextArea } = Input;
 const randomRoomId = len => {
     let nums = [0,1,2,3,4,5,6,7,8,9];
@@ -28,10 +31,15 @@ const randomRoomId = len => {
     }
     return Number(room);
 }
-let roomId = randomRoomId(10)
+let roomId = randomRoomId(10);
+let rtcStatus = null; // 记录RTC的状态 attch createRoom joinRoom publish unpublish leave destory ...
 
+
+console.log("init room", roomId);
 const Main = props => {
     const location = useLocation();
+    const [form] = Form.useForm();
+    
     let feeds = [];
     let { janus_info } = props;
     let { ws_port, wss_port, string_ids, ice_servers:iceServers } = janus_info;
@@ -52,10 +60,11 @@ const Main = props => {
     let [originalJanusPluginHandle, setoriginalJanusPluginHandle] = useState(null);
     let [remoteStreamList, setRemoteStreamList] = useState([]);
     let [localStream, setLocalStream] = useState(null);
+    let [display, setDisplay] = useState(null);
+    let [showModal, setShowModal] = useState(false);
     let localStreamElement = useRef(null);
     let ws = null;
     let janus = null;
-    console.log("init room", roomId);
     
 
     const queryAllParams = url => {
@@ -67,7 +76,6 @@ const Main = props => {
                 obj[key] = value;
             })
         }
-        console.log(url, obj)
         return obj;
     }
     const publishOwnFeed = (pluginHandle, useAudio, transaction) => {
@@ -83,6 +91,7 @@ const Main = props => {
           simulcast: false,
           simulcast2: false,
           success: function (jsep) {
+            rtcStatus = PUBLISH;
             let publish = { request: "configure", audio: useAudio, video: true };
             pluginHandle.send({ message: publish, jsep: jsep }, transaction);
           },
@@ -96,6 +105,64 @@ const Main = props => {
         });
     }
 
+    // 初始化 需要用户输入昵称再进行RTC通话
+    useEffect(() => {
+        setShowModal(true);
+        let url = location.search ? location.search.split("?")[1]: "";
+        let urlParams = queryAllParams(url);
+        if (urlParams.share) {
+            let room = urlParams.roomId;
+            if (!room) {
+                ZkToast.error("未发现房间号");
+                return;
+            }
+            roomId = room;
+        }
+    }, [location])
+    /**
+     * @description 表单验证通过后的事件 隐藏modal
+     * @param {*} values 
+     */
+    const onFinish = values => {
+        let { display } = values;
+        setDisplay(display);
+        setShowModal(false);
+    }
+
+    // 输入 昵称后才能加入房间
+    useEffect(() => {
+        console.log(rtcStatus, originalJanusPluginHandle);
+        let url = location.search ? location.search.split("?")[1]: "";
+        let urlParams = queryAllParams(url)
+        if (rtcStatus && originalJanusPluginHandle) {
+            if (urlParams.share && rtcStatus >= ATTACH) {
+                originalJanusPluginHandle.send(
+                    {message:
+                        {
+                            "request" : "join",
+                            "ptype": "publisher",
+                            "room" : string_ids ? String(roomId) : roomId,
+                            "display" : display
+                        }
+                    }
+                )
+                return
+            }
+            if(urlParams.init && rtcStatus >= CREATE) {
+                originalJanusPluginHandle.send(
+                    {message:
+                        {
+                            "request" : "join",
+                            "ptype": "publisher",
+                            "room" : string_ids ? String(roomId) : roomId,
+                            "display" : display
+                        }
+                    }
+                )
+            }
+        }
+    }, [display, originalJanusPluginHandle])
+
     // 本地流显示
     useEffect(() => {
         if (localStreamElement && localStream) {
@@ -108,7 +175,6 @@ const Main = props => {
     useEffect(() => {
         let url = location.search ? location.search.split("?")[1]: "";
         let urlParams = queryAllParams(url)
-        console.log(urlParams, location);
         if (urlParams.init && !urlParams.share) {
             if (originalJanusPluginHandle) {
                 console.log("create room", roomId);
@@ -118,31 +184,6 @@ const Main = props => {
                             "request" : "create",
                             "room" : string_ids ? String(roomId) : roomId,
                             "description" : '测试房间'
-                        }
-                    }
-                )
-                originalJanusPluginHandle.send({
-                    message: {
-                        request: "list"
-                    }
-                })
-            }
-        }
-        if (urlParams.share) {
-            if (originalJanusPluginHandle) {
-                let room = urlParams.roomId;
-                if (!room) {
-                    ZkToast.error("未发现房间号");
-                    return;
-                }
-                roomId = room;
-                originalJanusPluginHandle.send(
-                    {message:
-                        {
-                            "request" : "join",
-                            "ptype": "publisher",
-                            "room" : string_ids ? String(room) : room,
-                            "display" : '面试者'
                         }
                     }
                 )
@@ -163,6 +204,7 @@ const Main = props => {
         Janus.init({
             debug: "all",
             callback: () => {
+                rtcStatus = INIT;
                 janus = janus = new Janus({
                 iceServers: iceServers && iceServers.length > 0 ? iceServers : null,
                 server,
@@ -171,6 +213,7 @@ const Main = props => {
                     plugin: "janus.plugin.videoroom",
                     opaqueId: Janus.randomString(12),
                     success: (pluginHandle) => {
+                        rtcStatus = ATTACH;
                         JanusPluginHandle = pluginHandle;
                         setoriginalJanusPluginHandle(pluginHandle);
                     },
@@ -222,18 +265,10 @@ const Main = props => {
                       if (event) {
                         switch (event) {
                             case "created":
-                                JanusPluginHandle.send(
-                                    {message:
-                                        {
-                                            "request" : "join",
-                                            "ptype": "publisher",
-                                            "room" : string_ids ? String(roomId) : roomId,
-                                            "display" : '面试官'
-                                        }
-                                    }
-                                )
-                                
+                                rtcStatus = CREATE;
+                                break;
                             case "joined":
+                                rtcStatus = JOIN;
                                 publishOwnFeed(JanusPluginHandle, true, uuidv4())
                                 break;
                             case "participants":
@@ -252,7 +287,6 @@ const Main = props => {
                                         }
                                     )
                                 }
-                                
                                 break;
                         }
                       }
@@ -446,11 +480,7 @@ const Main = props => {
         <div id="main">
             <div className="main_left">
                 <div className="control_header">
-                    <Button icon={<ShareAltOutlined />} onClick={() => {
-
-        console.log(remoteStreamList, 2222, remoteStreamList.length)
-        copyPageUrl()
-                    }}></Button>
+                    <Button icon={<ShareAltOutlined />} onClick={copyPageUrl}></Button>
                 </div>
                 <div className="editer_containrt">
                     <CodeMirror
@@ -496,6 +526,40 @@ const Main = props => {
                     ></TextArea>
                 </div>
             </div>
+            <Modal 
+                visible={showModal}
+                closable={false}
+                keyboard={false}
+                footer={[]}
+                title="请输入昵称"
+                type="info">
+                    <Form
+                        name="rtc_form"
+                        initialValues={{ display }}
+                        onFinish={onFinish}
+                        >
+                        <Form.Item
+                            label="昵称"
+                            name="display"
+                            rules={[{ required: true, message: '请输入昵称' }]}
+                        >
+                            <Input></Input>
+                        </Form.Item>
+                        <Form.Item ayout = {{
+                                    labelCol: {
+                                        span: 16,
+                                    },
+                                    wrapperCol: {
+                                        span: 8,
+                                    },
+                                    }}>
+                            <Button type="primary" htmlType="submit">
+                            确定
+                            </Button>
+                        </Form.Item>
+                    </Form>
+                    
+            </Modal>
         </div>
     )
 }
