@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { INIT, ATTACH, CREATE, JOIN, PUBLISH, SUBICRIBE, UNPUBLISH, LEAVE, UNATTACH, DESTROY } from "../../utils/janus_status.js";
+import { INIT, ATTACH, CREATE, JOIN, PUBLISH } from "../../utils/janus_status.js";
 import CodeMirror from '@uiw/react-codemirror';
 import RtcView from "../../components/rtc_view/rtc_view.jsx";
 import Janus from "../../utils/janus.js";
 import Commication from "../../components/commication/commcation.jsx";
-import { Input, Button, Modal, Form } from 'antd';
+import { Input, Button, Modal, Form, notification } from 'antd';
 import { ShareAltOutlined } from "@ant-design/icons";
 import { v4 as uuidv4 } from "uuid";
 import { useLocation } from "react-router-dom";
@@ -34,7 +34,20 @@ let roomId = randomRoomId(10);
 let rtcStatus = null; // 记录RTC的状态 attch createRoom joinRoom publish unpublish leave destory ...
 let localDisplay = null;
 let localId = null;
+let screenId = null;
 console.log("init room", roomId);
+
+const queryAllParams = url => {
+   let obj = {};
+   if (url.length) {
+       let paramsItemList = url.split("&");
+       paramsItemList.forEach(item => {
+           let [key, value] = item.split("=");
+           obj[key] = value;
+       })
+   }
+   return obj;
+}
 const Main = props => {
     const location = useLocation();
     const [form] = Form.useForm();
@@ -44,6 +57,7 @@ const Main = props => {
     let { ws_port, wss_port, string_ids, ice_servers:iceServers } = janus_info;
     let [codeStr, setcodeStr] = useState("");
     let JanusPluginHandle = null;
+    let JanusScreenPluginHandle = null;
     let initOptions = {
         theme: "monokai",
           keyMap: "sublime",
@@ -54,42 +68,43 @@ const Main = props => {
           tabSize: 2
     }
     let [codeMirrorOptions, setcodeMirrorOptions] = useState(initOptions);
+    let [isMain, setIsMain] = useState(false);
     let [commicationText, setcommicationText] = useState("");
     let [commicationList, setcommicationList] = useState([]);
     let [originalJanusPluginHandle, setoriginalJanusPluginHandle] = useState(null);
     let [remoteStreamList, setRemoteStreamList] = useState([]);
-    let [localStream, setLocalStream] = useState(null);
+    let [localStream, setLocalStream] = useState([]);
     let [display, setDisplay] = useState(null);
     let [showModal, setShowModal] = useState(false);
     let localStreamElement = useRef(null);
     let ws = null;
     let janus = null;
     
-    /**
-     * @desciption 解析网页URL的所有参数
-     * @param {String} url 网页链接
-     * @returns 
-     */
-    const queryAllParams = url => {
-        let obj = {};
-        if (url.length) {
-            let paramsItemList = url.split("&");
-            paramsItemList.forEach(item => {
-                let [key, value] = item.split("=");
-                obj[key] = value;
-            })
+    let url = location.search ? location.search.split("?")[1]: "";
+    let urlParams = queryAllParams(url);
+
+    useEffect(() => {
+        let url = location.search ? location.search.split("?")[1]: "";
+        let urlParams = queryAllParams(url);
+        if (urlParams.share) {
+            setIsMain(false);
+            return
         }
-        return obj;
-    }
-    const publishOwnFeed = (pluginHandle, useAudio, transaction) => {
-        console.log(pluginHandle)
+        if (urlParams.init && !urlParams.share) {
+            setIsMain(true);
+        }
+    }, []);
+
+    
+    const publishOwnFeed = (pluginHandle, useAudio, isScreen=false, transaction) => {
         pluginHandle.createOffer({
           media: {
+            video: isScreen ? "screen" : true,
             audioRecv: false,
             videoRecv: false,
             audioSend: useAudio,
             videoSend: true,
-            data: true
+            data: !isScreen 
           }, // Publishers are sendonly
           simulcast: false,
           simulcast2: false,
@@ -100,7 +115,7 @@ const Main = props => {
           },
           error: function (error) {
             if (useAudio) {
-              publishOwnFeed(pluginHandle, false, transaction);
+              publishOwnFeed(pluginHandle, false, isScreen, transaction);
             } else {
               ZkToast.error("WebRTC error... " + JSON.stringify(error));
             }
@@ -138,7 +153,7 @@ const Main = props => {
         console.log(rtcStatus, originalJanusPluginHandle);
         let url = location.search ? location.search.split("?")[1]: "";
         let urlParams = queryAllParams(url)
-        if (rtcStatus && originalJanusPluginHandle) {
+        if (display && rtcStatus && originalJanusPluginHandle) {
             if (urlParams.share && rtcStatus >= ATTACH) {
                 originalJanusPluginHandle.send(
                     {message:
@@ -198,18 +213,88 @@ const Main = props => {
                 })
             }
         }
-    }, [originalJanusPluginHandle, location])
+    }, [originalJanusPluginHandle])
 
+    const screenAttach = _ => {
+        janus.attach({
+        plugin: "janus.plugin.videoroom",
+        opaqueId: Janus.randomString(12),
+        success: (pluginHandle) => {
+            rtcStatus = ATTACH;
+            JanusScreenPluginHandle = pluginHandle;
+            pluginHandle.send(
+                {message:
+                    {
+                        "request" : "join",
+                        "ptype": "publisher",
+                        "id": `${uuidv4()}-screen`,
+                        "room" : string_ids ? String(roomId) : roomId,
+                        "display" : `${localDisplay}-screen`
+                    }
+                }
+            )
+        },
+        error: (error) => {
+          ZkToast.error(error);
+        },
+        // 在getUserMedia调用时触发　提示用户接受设备访问授权
+        consentDialog: (on) => {
+        },
+        // PeerConnection处于活跃状态并且ICE DTLS都操作成功是返回true PeerConnection断开返回false
+        webrtcState: (medium, on) => {
+        },
+        onmessage: (msg, jsep) => {
+            console.log(msg, JanusScreenPluginHandle);
+            let {
+                videoroom: event,
+                plugindata,
+                publishers
+            } = msg;
+          if (event) {
+            switch (event) {
+                case "joined":
+                    rtcStatus = JOIN;
+                    screenId = msg.id;
+                    publishOwnFeed(JanusScreenPluginHandle, true, true, uuidv4())
+                    break;
+                case "event":
+                    if ('error' in msg) {
+                        console.log('JANUS异常:', msg['error']);
+                        ZkToast.error(msg['error'], 5);
+                    }
+                    break;
+            }
+          }
+          if (jsep) {
+            JanusScreenPluginHandle.handleRemoteJsep({
+              jsep: jsep,
+            });
+          }
+          if (plugindata) {
+            let { data } = plugindata;
+            if (data.error) {
+              ZkToast.error(data.error);
+              return;
+            }
+          }
+        },
+        onlocalstream: (stream) => {
+        }
+      });
+    }
     /**
      * Janus 初始化的函数
      */
     useEffect(() => {
+        if (!wss_port) {
+            return
+        }
         let url = location.search ? location.search.split("?")[1]: "";
         let urlParams = queryAllParams(url)
         console.log(urlParams, location);
         let server = `wss://${baseIp}:${wss_port}`
         Janus.init({
-            debug: "all",
+            debug: false,
             callback: () => {
                 rtcStatus = INIT;
                 janus = janus = new Janus({
@@ -246,13 +331,24 @@ const Main = props => {
                             list,
                             id
                         } = msg;
-                        if (unpublished) {
-                            
+                        if (unpublished || leaving) {
+                            setRemoteStreamList(list => {
+                                console.log(11111, list);
+                                let _index = list.findIndex(item => item.id == (unpublished || leaving));
+                                console.log(_index);
+                                if (_index != -1) {
+                                    list.splice(1, _index);
+                                }
+                                console.log(2222, list);
+                                return [...list];
+                            })
                         }
                         if (publishers) {
                             publishers.forEach(item => {
                                 let { audio_codec, id, display, talking, video_codec} = item;
-                                newRemoteFeed(id, roomId, display, true, video_codec);
+                                if (!(urlParams.share && id.indexOf("-screen") != -1)) {
+                                    newRemoteFeed(id, roomId, display, true, video_codec);
+                                }
                             })
                         }
                         if (list) {
@@ -276,9 +372,10 @@ const Main = props => {
                                 rtcStatus = CREATE;
                                 break;
                             case "joined":
+                                console.log(msg);
                                 rtcStatus = JOIN;
                                 localId = msg.id;
-                                publishOwnFeed(JanusPluginHandle, true, uuidv4())
+                                publishOwnFeed(JanusPluginHandle, true, false, uuidv4())
                                 break;
                             case "participants":
                                 break;
@@ -319,11 +416,20 @@ const Main = props => {
                       console.log(`111111111ondata${data}`);
                     },
                     onlocalstream: (stream) => {
-                        setLocalStream({
-                            id: localId,
-                            display: localDisplay,
-                            local: true,
-                            stream
+                        setLocalStream( localstream => {
+                            let _index = localstream.findIndex(item => item.stream.id == stream.id);
+                            console.log(_index);
+                            if (_index != -1) {
+                                localstream[_index].stream = stream;
+                            } else {
+                                return localstream.concat([{
+                                    id: localId,
+                                    display: localDisplay,
+                                    local: true,
+                                    stream
+                                }])
+                            }
+                            return localstream;
                         });
                     },
                     oncleanup: () => {
@@ -350,7 +456,7 @@ const Main = props => {
             }
             
           })
-    }, []);
+    }, [wss_port]);
     /**
      * 
      * @param {String} url page url
@@ -398,6 +504,7 @@ const Main = props => {
     * @param {*} video  false
     */
     const newRemoteFeed = (id, room_id, display, audio, video) => {
+        console.log("订阅", id, room_id, display, audio, video)
      let remoteHandle = null;
      if (janus) {
        janus.attach({
@@ -488,6 +595,27 @@ const Main = props => {
                             return list.concat([revicerData])
                         });
                         break;
+                    case "screen":
+                        console.log("datachannel screen.....")
+                        let { text: viteText, display } = revicerData;
+                        notification["info"]({
+                            message: "远程提醒",
+                            description: `${display}:${viteText}`,
+                        });
+                        setTimeout(() => {
+                            screenAttach();
+                        }, 1000);
+                        // Modal.confirm({
+                        //     title: `${display}:${viteText}`,
+                        //     onOk: _ => {
+                        //         console.log(originalJanusPluginHandle, JanusPluginHandle);
+                        //         if (JanusPluginHandle) {
+                        //             publishOwnFeed(JanusPluginHandle, true, true, uuidv4())
+                        //         }
+                        //     }
+                        // })
+                        
+                        break;
                     default:
                         break;
                 }
@@ -497,22 +625,20 @@ const Main = props => {
             // setcodeStr(data);
          },
          onremotestream: (stream) => {
-            let copyList = [...remoteStreamList]
-            let hasStream_index = copyList.findIndex(item => item.id == id);
-            if (hasStream_index != -1) {
-                copyList[hasStream_index].stream = stream;
-            } else {
-                copyList.push({
-                    id,
-                    display,
-                    stream
-                });
-            }
-            setRemoteStreamList(copyList);
+            setRemoteStreamList(copyList => {
+                let hasStream_index = copyList.findIndex(item => item.id == id);
+                if (hasStream_index == -1) {
+                    return copyList.concat({
+                        id,
+                        display,
+                        stream
+                    })
+                }
+                return copyList;
+            });
         //    let videoTracks = stream.getVideoTracks();
          },
          oncleanup: function () {
-           console.log('clear..............')
            remoteHandle.simulcastStarted = false;
          },
          detach: (a, b, c) => {
@@ -521,7 +647,8 @@ const Main = props => {
        });
      }
    };
-   const listStream = localStream ? [...remoteStreamList, ...[localStream]] : [...remoteStreamList];
+   console.log(11111, localStream, remoteStreamList);
+   const listStream = localStream ? [...localStream, ...remoteStreamList] : [...remoteStreamList];
    /**
     * @description 发送聊天信息
     * @param {Any} _ 
@@ -545,6 +672,23 @@ const Main = props => {
             }])
         });
         originalJanusPluginHandle.data({text: JSON.stringify(msg), success: res=> {
+            setcommicationText("");
+        }, err: err => {
+            console.log(err);
+        }});
+    }
+   }
+   const viteScreen = _ => {
+    if (originalJanusPluginHandle) {
+        let msg = {
+            type: "screen",
+            data: {
+                display: localDisplay,
+                text: "邀请您开启屏幕共享",
+                date: new Date().toLocaleString()
+            }
+        };
+        originalJanusPluginHandle.data({text: JSON.stringify(msg), success: res=> {
         }, err: err => {
             console.log(err);
         }});
@@ -554,7 +698,8 @@ const Main = props => {
         <div id="main">
             <div className="main_left">
                 <div className="control_header">
-                    <Button icon={<ShareAltOutlined />} onClick={copyPageUrl}></Button>
+                    {isMain ? <Button type="primary" icon={<ShareAltOutlined />} onClick={copyPageUrl}></Button>:null}
+                    {isMain ? <Button type="primary" shape="round" onClick={viteScreen}>邀请开启屏幕</Button> : null}
                 </div>
                 <div className="editer_containrt">
                     <CodeMirror
@@ -562,6 +707,7 @@ const Main = props => {
                         value={codeStr}
                         options={codeMirrorOptions}
                         onChange={(editor, data) => {
+                            console.log(editor, data);
                             let value = editor.getValue();
                             let { origin } = data;
                             setcodeStr(value);

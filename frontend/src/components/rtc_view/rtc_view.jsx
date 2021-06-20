@@ -1,9 +1,16 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "./rtc_view.scss";
 
 const RtcView = props => {
     let { id, stream, display, local } = props.info;
     let videoElementRef = useRef(null);
+    let [isScreen, setIsScreen] = useState(false);
+
+    // if (id.indexOf("-screen") != -1) {
+    //     setIsScreen(true);
+    // } else {
+    //     setIsScreen(false);
+    // }
 
     useEffect(() => {  
         if (videoElementRef) {

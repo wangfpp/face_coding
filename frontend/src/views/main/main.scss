@@ -20,6 +20,8 @@
     }
     .main_right{
         width: 300px;
+        height: 100%;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
         .right_top{
