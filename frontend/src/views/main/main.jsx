@@ -4,7 +4,7 @@ import CodeMirror from '@uiw/react-codemirror';
 import RtcView from "../../components/rtc_view/rtc_view.jsx";
 import Janus from "../../utils/janus.js";
 import Commication from "../../components/commication/commcation.jsx";
-import { Input, Button, Modal, Form, notification } from 'antd';
+import { Input, Button, Modal, Form, notification, Select } from 'antd';
 import { ShareAltOutlined } from "@ant-design/icons";
 import { v4 as uuidv4 } from "uuid";
 import { useLocation } from "react-router-dom";
@@ -17,9 +17,68 @@ import 'codemirror/addon/edit/matchbrackets';
 import 'codemirror/keymap/sublime';
 import 'codemirror/theme/monokai.css';
 import { baseIp } from '../../utils/config.js';
+import allModes from "./mode.js"
+import { codeMirrorThemes } from "./themes.js";
+
+import 'codemirror/theme/3024-day.css';
+import 'codemirror/theme/3024-night.css';
+import 'codemirror/theme/abcdef.css';
+import 'codemirror/theme/ambiance-mobile.css';
+import 'codemirror/theme/ambiance.css';
+import 'codemirror/theme/base16-dark.css';
+import 'codemirror/theme/base16-light.css';
+import 'codemirror/theme/bespin.css';
+import 'codemirror/theme/blackboard.css';
+import 'codemirror/theme/cobalt.css';
+import 'codemirror/theme/colorforth.css';
+import 'codemirror/theme/darcula.css';
+import 'codemirror/theme/dracula.css';
+import 'codemirror/theme/duotone-dark.css';
+import 'codemirror/theme/duotone-light.css';
+import 'codemirror/theme/eclipse.css';
+import 'codemirror/theme/elegant.css';
+import 'codemirror/theme/erlang-dark.css';
+import 'codemirror/theme/gruvbox-dark.css';
+import 'codemirror/theme/hopscotch.css';
+import 'codemirror/theme/icecoder.css';
+import 'codemirror/theme/idea.css';
+import 'codemirror/theme/isotope.css';
+import 'codemirror/theme/lesser-dark.css';
+import 'codemirror/theme/liquibyte.css';
+import 'codemirror/theme/lucario.css';
+import 'codemirror/theme/material.css';
+import 'codemirror/theme/mbo.css';
+import 'codemirror/theme/mdn-like.css';
+import 'codemirror/theme/midnight.css';
+import 'codemirror/theme/monokai.css';
+import 'codemirror/theme/neat.css';
+import 'codemirror/theme/neo.css';
+import 'codemirror/theme/night.css';
+import 'codemirror/theme/oceanic-next.css';
+import 'codemirror/theme/panda-syntax.css';
+import 'codemirror/theme/paraiso-dark.css';
+import 'codemirror/theme/paraiso-light.css';
+import 'codemirror/theme/pastel-on-dark.css';
+import 'codemirror/theme/railscasts.css';
+import 'codemirror/theme/rubyblue.css';
+import 'codemirror/theme/seti.css';
+import 'codemirror/theme/shadowfox.css';
+import 'codemirror/theme/solarized.css';
+import 'codemirror/theme/ssms.css';
+import 'codemirror/theme/the-matrix.css';
+import 'codemirror/theme/tomorrow-night-bright.css';
+import 'codemirror/theme/tomorrow-night-eighties.css';
+import 'codemirror/theme/ttcn.css';
+import 'codemirror/theme/twilight.css';
+import 'codemirror/theme/vibrant-ink.css';
+import 'codemirror/theme/xq-dark.css';
+import 'codemirror/theme/xq-light.css';
+import 'codemirror/theme/yeti.css';
+import 'codemirror/theme/zenburn.css';
 
 
 
+const { Option } = Select;
 const { TextArea } = Input;
 const randomRoomId = len => {
     let nums = [0,1,2,3,4,5,6,7,8,9];
@@ -76,6 +135,8 @@ const Main = props => {
     let [localStream, setLocalStream] = useState([]);
     let [display, setDisplay] = useState(null);
     let [showModal, setShowModal] = useState(false);
+    let [mode, setMode] = useState("jsx");
+    let [codeMirrorTheme, setcodeMirrorTheme] = useState("monokai")
     let localStreamElement = useRef(null);
     let ws = null;
     let janus = null;
@@ -694,12 +755,49 @@ const Main = props => {
         }});
     }
    }
+   const loadCode = (mode) => {
+    import(`codemirror/mode/${mode}/${mode}.js`).then((data) => {
+    //   this.setState({
+    //     code: data.default,
+    //   });
+    }).catch(() => {
+    //   this.setState({ code: 'Please enter a sample code.' });
+    });
+  }
+   const handleChangeMode = (mode) => {
+    setcodeMirrorOptions(option => {
+        return {...option, ...{mode}};
+    })
+    loadCode(mode)
+   }
+
+   const handleChangeTheme = theme => {
+    setcodeMirrorOptions(option => {
+        return {...option, ...{theme}};
+    })
+   }
     return(
         <div id="main">
             <div className="main_left">
                 <div className="control_header">
                     {isMain ? <Button type="primary" icon={<ShareAltOutlined />} onClick={copyPageUrl}></Button>:null}
                     {isMain ? <Button type="primary" shape="round" onClick={viteScreen}>邀请开启屏幕</Button> : null}
+                    <Select value={mode} style={{ width: 160 }} onChange={handleChangeMode}>
+                        {
+                            allModes.map((item, index) => {
+                                let { mode, name } = item;
+                                return <Option key={index} value={mode}>{name}</Option>
+                            })
+                        }
+                    </Select>
+
+                    <Select value={codeMirrorTheme} style={{ width: 160 }} onChange={handleChangeTheme}>
+                        {
+                            codeMirrorThemes.map((item, index) => {
+                                return <Option key={index} value={item}>{item}</Option>
+                            })
+                        }
+                    </Select>
                 </div>
                 <div className="editer_containrt">
                     <CodeMirror

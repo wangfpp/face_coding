@@ -9,6 +9,9 @@
         flex-direction: column;
         .control_header{
             height: 40px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
         }
         .editer_containrt {
             flex: 1;
