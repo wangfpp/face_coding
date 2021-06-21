@@ -23,7 +23,6 @@ const AppRouter = props => {
     }, []);
 
     useEffect(async () => {
-        console.log(11111111, token)
         if (token) {
             saveJanusInfo(token)
         }

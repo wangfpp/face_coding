@@ -10,13 +10,18 @@ const GetToken = props => {
     let { saveJanusInfo } = props;
     let [token, setToken] = useState(null);
 
+    /**
+     * @description 获取token
+     */
     useEffect(async () => {
         let {data} = await JanusInfoServer.getToken();
         setToken(data);
     }, []);
 
+    /**
+     * @description 获取token后获取janus info信息
+     */
     useEffect(async () => {
-        console.log(11111111, token)
         if (token) {
             saveJanusInfo(token)
         }

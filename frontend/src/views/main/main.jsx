@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { INIT, ATTACH, CREATE, JOIN, PUBLISH } from "../../utils/janus_status.js";
-import CodeMirror from '@uiw/react-codemirror';
+
 import RtcView from "../../components/rtc_view/rtc_view.jsx";
 import Janus from "../../utils/janus.js";
 import Commication from "../../components/commication/commcation.jsx";
@@ -10,71 +10,14 @@ import { v4 as uuidv4 } from "uuid";
 import { useLocation } from "react-router-dom";
 import { ZkToast } from '../../components/message/message.js';
 import { connect } from "react-redux";
+import ShareCodeEditor from "../../components/share_code_editor/share_code_editor";
 import "./main.scss";
-import 'codemirror/addon/display/autorefresh';
-import 'codemirror/addon/comment/comment';
-import 'codemirror/addon/edit/matchbrackets';
-import 'codemirror/keymap/sublime';
-import 'codemirror/theme/monokai.css';
+
 import { baseIp } from '../../utils/config.js';
 import allModes from "./mode.js"
 import { codeMirrorThemes } from "./themes.js";
 
-import 'codemirror/theme/3024-day.css';
-import 'codemirror/theme/3024-night.css';
-import 'codemirror/theme/abcdef.css';
-import 'codemirror/theme/ambiance-mobile.css';
-import 'codemirror/theme/ambiance.css';
-import 'codemirror/theme/base16-dark.css';
-import 'codemirror/theme/base16-light.css';
-import 'codemirror/theme/bespin.css';
-import 'codemirror/theme/blackboard.css';
-import 'codemirror/theme/cobalt.css';
-import 'codemirror/theme/colorforth.css';
-import 'codemirror/theme/darcula.css';
-import 'codemirror/theme/dracula.css';
-import 'codemirror/theme/duotone-dark.css';
-import 'codemirror/theme/duotone-light.css';
-import 'codemirror/theme/eclipse.css';
-import 'codemirror/theme/elegant.css';
-import 'codemirror/theme/erlang-dark.css';
-import 'codemirror/theme/gruvbox-dark.css';
-import 'codemirror/theme/hopscotch.css';
-import 'codemirror/theme/icecoder.css';
-import 'codemirror/theme/idea.css';
-import 'codemirror/theme/isotope.css';
-import 'codemirror/theme/lesser-dark.css';
-import 'codemirror/theme/liquibyte.css';
-import 'codemirror/theme/lucario.css';
-import 'codemirror/theme/material.css';
-import 'codemirror/theme/mbo.css';
-import 'codemirror/theme/mdn-like.css';
-import 'codemirror/theme/midnight.css';
-import 'codemirror/theme/monokai.css';
-import 'codemirror/theme/neat.css';
-import 'codemirror/theme/neo.css';
-import 'codemirror/theme/night.css';
-import 'codemirror/theme/oceanic-next.css';
-import 'codemirror/theme/panda-syntax.css';
-import 'codemirror/theme/paraiso-dark.css';
-import 'codemirror/theme/paraiso-light.css';
-import 'codemirror/theme/pastel-on-dark.css';
-import 'codemirror/theme/railscasts.css';
-import 'codemirror/theme/rubyblue.css';
-import 'codemirror/theme/seti.css';
-import 'codemirror/theme/shadowfox.css';
-import 'codemirror/theme/solarized.css';
-import 'codemirror/theme/ssms.css';
-import 'codemirror/theme/the-matrix.css';
-import 'codemirror/theme/tomorrow-night-bright.css';
-import 'codemirror/theme/tomorrow-night-eighties.css';
-import 'codemirror/theme/ttcn.css';
-import 'codemirror/theme/twilight.css';
-import 'codemirror/theme/vibrant-ink.css';
-import 'codemirror/theme/xq-dark.css';
-import 'codemirror/theme/xq-light.css';
-import 'codemirror/theme/yeti.css';
-import 'codemirror/theme/zenburn.css';
+
 
 
 
@@ -119,12 +62,10 @@ const Main = props => {
     let JanusScreenPluginHandle = null;
     let initOptions = {
         theme: "monokai",
-          keyMap: "sublime",
-          mode: "jsx",
-          // 括号匹配
-          matchBrackets: true,
-          // tab缩进
-          tabSize: 2
+        keyMap: "sublime",
+        mode: "jsx",
+        matchBrackets: true,
+        tabSize: 2
     }
     let [codeMirrorOptions, setcodeMirrorOptions] = useState(initOptions);
     let [isMain, setIsMain] = useState(false);
@@ -135,8 +76,6 @@ const Main = props => {
     let [localStream, setLocalStream] = useState([]);
     let [display, setDisplay] = useState(null);
     let [showModal, setShowModal] = useState(false);
-    let [mode, setMode] = useState("jsx");
-    let [codeMirrorTheme, setcodeMirrorTheme] = useState("monokai")
     let localStreamElement = useRef(null);
     let ws = null;
     let janus = null;
@@ -298,12 +237,6 @@ const Main = props => {
         error: (error) => {
           ZkToast.error(error);
         },
-        // 在getUserMedia调用时触发　提示用户接受设备访问授权
-        consentDialog: (on) => {
-        },
-        // PeerConnection处于活跃状态并且ICE DTLS都操作成功是返回true PeerConnection断开返回false
-        webrtcState: (medium, on) => {
-        },
         onmessage: (msg, jsep) => {
             console.log(msg, JanusScreenPluginHandle);
             let {
@@ -338,8 +271,6 @@ const Main = props => {
               return;
             }
           }
-        },
-        onlocalstream: (stream) => {
         }
       });
     }
@@ -394,7 +325,6 @@ const Main = props => {
                         } = msg;
                         if (unpublished || leaving) {
                             setRemoteStreamList(list => {
-                                console.log(11111, list);
                                 let _index = list.findIndex(item => item.id == (unpublished || leaving));
                                 console.log(_index);
                                 if (_index != -1) {
@@ -404,7 +334,7 @@ const Main = props => {
                                 return [...list];
                             })
                         }
-                        if (publishers) {
+                        if (publishers && publishers.length) {
                             publishers.forEach(item => {
                                 let { audio_codec, id, display, talking, video_codec} = item;
                                 if (!(urlParams.share && id.indexOf("-screen") != -1)) {
@@ -436,6 +366,7 @@ const Main = props => {
                                 console.log(msg);
                                 rtcStatus = JOIN;
                                 localId = msg.id;
+                                
                                 publishOwnFeed(JanusPluginHandle, true, false, uuidv4())
                                 break;
                             case "participants":
@@ -471,7 +402,8 @@ const Main = props => {
                       }
                     },
                     ondataopen: (msg) => {
-                      console.warn(`ondataopen${msg}`);
+                        console.warn(`ondataopen${msg}`);
+                        
                     },
                     ondata: (data) => {
                       console.log(`111111111ondata${data}`);
@@ -518,16 +450,6 @@ const Main = props => {
             
           })
     }, [wss_port]);
-    /**
-     * 
-     * @param {String} url page url
-     * @param {Number} index 要插入的位置
-     * @param {String} param 要插入的参数String
-     * @returns 
-     */
-    const insertParams = (url, index, param) => {
-        return url.slice(0, index) + param + url.slice(index);
-    }
 
     /**
      * @description 把地址栏URL拷贝到剪切板
@@ -544,17 +466,6 @@ const Main = props => {
         } catch (err) {
             console.error('Failed to copy: ', err);
         }
-    }
-    const setCodeValue = data => {
-        let { text } = data;
-        console.log(text)
-        setcodeStr(text);
-    }
-
-    const setCommicationValue = data => {
-        let oldlist = [...commicationList];
-        oldlist.push(data)
-        setcommicationList(oldlist);
     }
     /**
     * 
@@ -641,7 +552,28 @@ const Main = props => {
            }
          },
          webrtcState: function (on) {},
+         ondataopen: _ => {
+            //通知面试官 本地可以接收信息了
+            console.log(urlParams.share == "true");
+            if(urlParams.share == "true") {
+                let msg = {
+                    type: "snyc_config",
+                    data: {
+                        display: localDisplay,
+                        text: "同步信息",
+                        date: new Date().toLocaleString()
+                    }
+                };
+                console.log(msg);
+                remoteHandle.data({text: JSON.stringify(msg), success: res=> {
+                    console.log(res, "同步信息请求发送成功");
+                }, err: err => {
+                    console.log(err);
+                }});
+            }
+         },
          ondata: data => {
+             console.log(2222222222222, data);
             try {
                 let jsonData = JSON.parse(data);
                 let { type, data: revicerData } = jsonData;
@@ -666,16 +598,19 @@ const Main = props => {
                         setTimeout(() => {
                             screenAttach();
                         }, 1000);
-                        // Modal.confirm({
-                        //     title: `${display}:${viteText}`,
-                        //     onOk: _ => {
-                        //         console.log(originalJanusPluginHandle, JanusPluginHandle);
-                        //         if (JanusPluginHandle) {
-                        //             publishOwnFeed(JanusPluginHandle, true, true, uuidv4())
-                        //         }
-                        //     }
-                        // })
-                        
+                        break;
+                    case "snyc_config":
+                        if (!urlParams.share) {
+                            syncConfigAndCode();
+                        }
+                        break;
+                    case "config":
+                        if (urlParams.share == "true") {
+                            setcodeMirrorOptions(options => {
+                                console.log(options, "...");
+                                return {...options, ...text, ...{theme: options.theme}};
+                            })
+                        }
                         break;
                     default:
                         break;
@@ -708,7 +643,6 @@ const Main = props => {
        });
      }
    };
-   console.log(11111, localStream, remoteStreamList);
    const listStream = localStream ? [...localStream, ...remoteStreamList] : [...remoteStreamList];
    /**
     * @description 发送聊天信息
@@ -757,41 +691,100 @@ const Main = props => {
    }
    const loadCode = (mode) => {
     import(`codemirror/mode/${mode}/${mode}.js`).then((data) => {
-    //   this.setState({
-    //     code: data.default,
-    //   });
+        // setCodeValue(data.default);
     }).catch(() => {
     //   this.setState({ code: 'Please enter a sample code.' });
     });
   }
    const handleChangeMode = (mode) => {
-    setcodeMirrorOptions(option => {
-        return {...option, ...{mode}};
-    })
-    loadCode(mode)
+       console.log(mode);
+        setcodeMirrorOptions(option => {
+            return {...option, ...{mode}};
+        })
+        loadCode(mode)
    }
 
-   const handleChangeTheme = theme => {
-    setcodeMirrorOptions(option => {
-        return {...option, ...{theme}};
-    })
-   }
+    const handleChangeTheme = theme => {
+        setcodeMirrorOptions(option => {
+            return {...option, ...{theme}};
+        })
+    }
+
+    /**
+    * @description 编辑器内容变化时触发的事件
+    * @param {Object} editor 编辑器实例
+    * @param {Object} data 编辑器的内容
+    */
+    const codeValueChange = (editor, data) => {
+        let value = editor.getValue();
+        let { origin } = data;
+        setcodeStr(value);
+        if (JanusPluginHandle && origin !== "setValue") {
+            let msg = {
+                type: "code",
+                data: {
+                    display: localDisplay,
+                    text: value,
+                    date: new Date().toLocaleString()
+                }
+            };
+            JanusPluginHandle.data({text: JSON.stringify(msg), success: res=> {
+            }, err: err => {
+                console.log(err);
+            }});
+        }
+    }
+
+    /**
+     * @description 当远端有人加入房间时及时同步代码编辑器
+     * @param {Any} _ 
+     */
+    const syncConfigAndCode = _ => {
+        if (JanusPluginHandle) {
+            let msgList = [
+                {
+                    type: "code",
+                    data: {
+                        display: localDisplay,
+                        text: codeStr,
+                        date: new Date().toLocaleString()
+                    }
+                },
+                {
+                    type: "config",
+                    data: {
+                        display: localDisplay,
+                        text: codeMirrorOptions,
+                        date: new Date().toLocaleString()
+                    } 
+                }
+            ]
+            msgList.forEach(msg => {
+                console.log(msg);
+                JanusPluginHandle.data({text: JSON.stringify(msg), success: res=> {
+                }, err: err => {
+                    console.log(err);
+                }});
+            })
+        }
+    }
     return(
         <div id="main">
             <div className="main_left">
                 <div className="control_header">
                     {isMain ? <Button type="primary" icon={<ShareAltOutlined />} onClick={copyPageUrl}></Button>:null}
                     {isMain ? <Button type="primary" shape="round" onClick={viteScreen}>邀请开启屏幕</Button> : null}
-                    <Select value={mode} style={{ width: 160 }} onChange={handleChangeMode}>
+                    {/* 选择codeMirror的语言 */}
+                    { isMain ? <Select value={codeMirrorOptions.mode} style={{ width: 160 }} onChange={handleChangeMode}>
                         {
                             allModes.map((item, index) => {
                                 let { mode, name } = item;
                                 return <Option key={index} value={mode}>{name}</Option>
                             })
                         }
-                    </Select>
-
-                    <Select value={codeMirrorTheme} style={{ width: 160 }} onChange={handleChangeTheme}>
+                    </Select> : null}
+                    {/* 选择主题 */}
+                    <Select value={codeMirrorOptions.theme} style={{ width: 160 }} onChange={handleChangeTheme}>
                         {
                             codeMirrorThemes.map((item, index) => {
                                 return <Option key={index} value={item}>{item}</Option>
@@ -800,31 +793,11 @@ const Main = props => {
                     </Select>
                 </div>
                 <div className="editer_containrt">
-                    <CodeMirror
-                        className="mirror_container"
-                        value={codeStr}
+                    <ShareCodeEditor 
                         options={codeMirrorOptions}
-                        onChange={(editor, data) => {
-                            console.log(editor, data);
-                            let value = editor.getValue();
-                            let { origin } = data;
-                            setcodeStr(value);
-                            if (JanusPluginHandle && origin !== "setValue") {
-                                let msg = {
-                                    type: "code",
-                                    data: {
-                                        display: localDisplay,
-                                        text: value,
-                                        date: new Date().toLocaleString()
-                                    }
-                                };
-                                JanusPluginHandle.data({text: JSON.stringify(msg), success: res=> {
-                                }, err: err => {
-                                    console.log(err);
-                                }});
-                            }
-                        }}
-                    />
+                        value={codeStr}
+                        onChange={codeValueChange}>
+                    </ShareCodeEditor>
                 </div>
             </div>
             <div className="main_right">

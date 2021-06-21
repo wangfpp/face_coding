@@ -6,12 +6,6 @@ const RtcView = props => {
     let videoElementRef = useRef(null);
     let [isScreen, setIsScreen] = useState(false);
 
-    // if (id.indexOf("-screen") != -1) {
-    //     setIsScreen(true);
-    // } else {
-    //     setIsScreen(false);
-    // }
-
     useEffect(() => {  
         if (videoElementRef) {
             let videoNode = videoElementRef.current;

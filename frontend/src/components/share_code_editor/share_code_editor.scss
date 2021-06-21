@@ -1,0 +1,4 @@
+@import "../../assets/style/minix.scss";
+.mirror_container {
+    @include cover(100%, 100%);
+}
